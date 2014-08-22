@@ -16,14 +16,17 @@ trait LocalMultiBandComparatorOp extends Serializable {
   /** Apply to the value from each cell of each band in a multiband raster and a constant Int. */
   def apply(m: MultiBandTile, c: Int): MultiBandTile = {
     val multiband = Array.ofDim[Tile](m.bands)
-    var tile = BitArrayTile.ofDim(m.cols, m.rows)
-    cfor(0)(_ < m.bands - 1, _ + 1) { band =>
+    cfor(0)(_ < m.bands, _ + 1) { band =>
+      var tile = BitArrayTile.ofDim(m.cols, m.rows)
       cfor(0)(_ < m.cols, _ + 1) { col =>
         cfor(0)(_ < m.rows, _ + 1) { row =>
-          tile.set(col, row, if (compare(m.getBand(band).get(col, row), c)) 1 else 0)
+          if (m.cellType.isFloatingPoint)
+            tile.set(col, row, if (compare(m.getBand(band).getDouble(col, row), c.toDouble)) 1 else 0)
+          else
+            tile.set(col, row, if (compare(m.getBand(band).get(col, row), c)) 1 else 0)
         }
       }
-      multiband(band) = tile
+      multiband.update(band, tile)
     }
     MultiBandTile(multiband)
   }
@@ -31,8 +34,8 @@ trait LocalMultiBandComparatorOp extends Serializable {
   /** Apply to the value from each cell of each band in a multiband raster and a constant Double. */
   def apply(m: MultiBandTile, c: Double): MultiBandTile = {
     val multiband = Array.ofDim[Tile](m.bands)
-    var tile = BitArrayTile.ofDim(m.cols, m.rows)
-    cfor(0)(_ < m.bands - 1, _ + 1) { band =>
+    cfor(0)(_ < m.bands, _ + 1) { band =>
+      var tile = BitArrayTile.ofDim(m.cols, m.rows)
       cfor(0)(_ < m.cols, _ + 1) { col =>
         cfor(0)(_ < m.rows, _ + 1) { row =>
           tile.set(col, row, if (compare(m.getBand(band).getDouble(col, row), c)) 1 else 0)
@@ -46,11 +49,14 @@ trait LocalMultiBandComparatorOp extends Serializable {
   /** Apply to a constant Int and the value from each cell of each band in a multiband raster. */
   def apply(c: Int, m: MultiBandTile): MultiBandTile = {
     val multiband = Array.ofDim[Tile](m.bands)
-    var tile = BitArrayTile.ofDim(m.cols, m.rows)
-    cfor(0)(_ < m.bands - 1, _ + 1) { band =>
+    cfor(0)(_ < m.bands, _ + 1) { band =>
+      var tile = BitArrayTile.ofDim(m.cols, m.rows)
       cfor(0)(_ < m.cols, _ + 1) { col =>
         cfor(0)(_ < m.rows, _ + 1) { row =>
-          tile.set(col, row, if (compare(c, m.getBand(band).get(col, row))) 1 else 0)
+          if (m.cellType.isFloatingPoint)
+            tile.set(col, row, if (compare(c.toDouble, m.getBand(band).getDouble(col, row))) 1 else 0)
+          else
+            tile.set(col, row, if (compare(c, m.getBand(band).get(col, row))) 1 else 0)
         }
       }
       multiband(band) = tile
@@ -61,8 +67,8 @@ trait LocalMultiBandComparatorOp extends Serializable {
   /** Apply to a constant Double and the value from each cell of each band in a multiband raster. */
   def apply(c: Double, m: MultiBandTile): MultiBandTile = {
     val multiband = Array.ofDim[Tile](m.bands)
-    var tile = BitArrayTile.ofDim(m.cols, m.rows)
-    cfor(0)(_ < m.bands - 1, _ + 1) { band =>
+    cfor(0)(_ < m.bands, _ + 1) { band =>
+      var tile = BitArrayTile.ofDim(m.cols, m.rows)
       cfor(0)(_ < m.cols, _ + 1) { col =>
         cfor(0)(_ < m.rows, _ + 1) { row =>
           tile.set(col, row, if (compare(c, m.getBand(band).getDouble(col, row))) 1 else 0)
@@ -81,11 +87,11 @@ trait LocalMultiBandComparatorOp extends Serializable {
     assert(m1.dimensions == m2.dimensions, "Number of Cols and Rows in bands are not equal")
     val (cols, rows) = m1.dimensions
     val multiband = Array.ofDim[Tile](m1.bands)
-    var tile = BitArrayTile.ofDim(cols, rows)
-    cfor(0)(_ < m1.bands - 1, _ + 1) { band =>
+    cfor(0)(_ < m1.bands, _ + 1) { band =>
+      var tile = BitArrayTile.ofDim(cols, rows)
       cfor(0)(_ < cols, _ + 1) { col =>
         cfor(0)(_ < rows, _ + 1) { row =>
-          if (m1.cellType.isFloatingPoint) {
+          if (m1.cellType.isFloatingPoint || m2.cellType.isFloatingPoint) {
             tile.set(col, row, if (compare(m1.getBand(band).getDouble(col, row), m2.getBand(band).getDouble(col, row))) 1 else 0)
           } else {
             tile.set(col, row, if (compare(m1.getBand(band).get(col, row), m2.getBand(band).get(col, row))) 1 else 0)
